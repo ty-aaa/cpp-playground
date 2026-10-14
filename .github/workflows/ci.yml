@@ -1,0 +1,49 @@
+# GitHub Actions —— 持续集成
+#
+# 每次 push / PR，GitHub 会另开一台【全新的】Ubuntu 虚拟机：
+#   clone 仓库 → 配置 → 构建 → 跑测试
+#
+# 它证明的不是「我本地能跑」，而是「任何人 clone 下来都能跑」。
+# 这两件事不一样 —— 你本地的 build/ 目录里留着历史缓存，
+# 而 CI 面对的只有仓库里那几个源文件。
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: 构建与测试
+    # GitHub 提供的全新 Ubuntu 虚拟机，已预装 cmake 和 ninja，不用额外装
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 打印工具版本
+        # CI 失败时，第一件想知道的事就是「那台机器上是什么环境」
+        run: |
+          cmake --version
+          ninja --version
+          c++ --version
+
+      - name: 配置
+        # ⚠️ 用 Debug，不要用 Release。
+        #    Release 会定义 NDEBUG，把 <cassert> 的 assert 编译成空语句 ——
+        #    测试会「通过」，但一个断言都没跑，而且不报任何错。
+        #
+        #    我们自己的 CHECK 宏不受 NDEBUG 影响，所以就算用 Release 也不会被骗；
+        #    但测试本来就该跑在 Debug 下（有调试信息，出问题好查），
+        #    所以这里明确写死 Debug。
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+      - name: 构建
+        run: cmake --build build
+
+      - name: 测试
+        # --output-on-failure：只把【失败】的测试输出打出来。
+        # 不加这个的话，挂了也看不到是哪个断言挂的，只能看到一个红叉。
+        run: ctest --test-dir build --output-on-failure
