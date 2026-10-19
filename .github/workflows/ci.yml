@@ -30,6 +30,14 @@ jobs:
           ninja --version
           c++ --version
 
+      - name: 安装系统依赖
+        # ⚠️ 这一步是必须的：GitHub 的 ubuntu-latest 【没有预装 GoogleTest】。
+        # 少了它，cmake 配置阶段会报
+        #   Could not find a package configuration file provided by "GTest"
+        # 而你本地因为有 apt 装的 libgtest-dev，永远看不到这个错 ——
+        # 这正是 CI 存在的意义：本地有 ≠ 干净机器上有。
+        run: sudo apt-get update && sudo apt-get install -y libgtest-dev
+
       - name: 配置
         # ⚠️ 用 Debug，不要用 Release。
         #    Release 会定义 NDEBUG，把 <cassert> 的 assert 编译成空语句 ——
